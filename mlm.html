@@ -1,0 +1,136 @@
+
+<script>
+
+    var isSafari = navigator.vendor &&
+        navigator.vendor.indexOf('Apple') > -1 &&
+        navigator.userAgent &&
+        navigator.userAgent.indexOf('CriOS') === -1 &&
+        navigator.userAgent.indexOf('FxiOS') === -1;
+    var getLink = function () {
+        var protocol = window.location.protocol + '//';
+        var host = 'olymptrade.com';
+        if (window.location.host.indexOf('indonesia-olymptrade.com') >= 0) {
+            host = 'indonesia-olymptrade.com';
+        }
+        var params = window.location.search
+            .replace('?', '').split('&')
+            .reduce(
+                function (p, e) {
+                    var a = e.split('=');
+                    if (a[0] !== 'lref' && a[0] !== 'lrefch' && a[0] !== 'pixel' && a[0] !== 'af_siteid') {
+                        p += e + '&';
+                    }
+                    return p;
+                },
+                ''
+            );
+        var search = '/l/affiliate-new-form/affiliate?' + params;
+        var result = protocol + host + search;
+        return result;
+    };
+    var linkPixel = getLink() + 'jwt_traffic=1';
+
+    var RegistrationModelProject = RegistrationModel.PROJECT_BO;
+    if (window.landProject === 'fx') {
+        RegistrationModelProject = RegistrationModel.PROJECT_FX;
+    }
+
+    var olympRegister = new RegistrationModel(RegistrationModel.FORM_2_P, RegistrationModelProject);
+    olympRegister
+        .addEmailInput('#olymp-register__email')
+        .addPasswordInput('#olymp-register__password')
+        .addRulesInput('#olymp-register__agreement')
+        .addCurrencyInput('.olymp-register__currency-options input[name=olymp-register-currency]');
+
+    $('.olymp-register__form').submit(function (event) {
+        event.preventDefault();
+        if (isSafari) {
+            fetch(linkPixel).then(function (response) {
+                return response.text();
+            }).then(function (token) {
+                    var additionalUrlParam = '?jwt_traffic=' + token;
+                    olympRegister.execute(additionalUrlParam);
+                }
+            ).catch(function (error) {
+                console.log('Request failed', error);
+            });
+        } else {
+            olympRegister.execute();
+        }
+        var postMsg = {
+            status: "submit",
+            body: {
+                email: document.getElementById('olymp-register__email').value
+            }
+        };
+        sendPostMessage(postMsg);
+    });
+
+    document.querySelector('.popup__title').innerHTML = wording.popup.title[$GET.lang];
+    document.querySelector('.popup__success').innerHTML = wording.popup.success[$GET.lang];
+    document.querySelector('.popup__redirect').innerHTML = wording.popup.redirect[$GET.lang];
+    olympRegisterCurrencyTitle.innerHTML = wording.currencyTitle[$GET.lang];
+    if ($GET.target === 'blank') {
+        olympRegister.setBehaviorAfterRegistration(function () {
+            document.querySelectorAll('.olymp-register__row, .olymp-register__submit-button').forEach(
+                function (value) {
+                    value.style.display = 'none';
+                });
+            olympRegisterSuccessBlock.classList.add('visible');
+            var postMsg = {
+                status: "registered",
+                body: {
+                    email: document.getElementById('olymp-register__email').value
+                }
+            };
+            sendPostMessage(postMsg);
+        });
+    } else {
+        olympRegister.setBehaviorAfterRegistration(function () {
+            olympRegister.defaultBehaviorAfterRegistration();
+            var postMsg = {
+                status: "redirected",
+                body: {
+                    email: document.getElementById('olymp-register__email').value
+                }
+            };
+            sendPostMessage(postMsg);
+        });
+    }
+    // Форма входа
+    function form_auth() {
+
+        var host = 'https://api.olymptrade.com';
+        var email = jQuery("#olymp-auth__email").val();
+        var password = jQuery("#olymp-auth__password").val();
+        var user_data = JSON.stringify({"data":{"email":email,"password":password},"captcha":{"type":"recaptcha","data":{ token: grecaptcha.getResponse()}}});
+        var redirectPlatform = 'https://olymptrade.com/platform';
+
+        if (window.landProject === 'fx') {
+            redirectPlatform = 'https://forex.olymptrade.com/platform';
+        }
+
+        jQuery.ajax({
+            url: host +'/v3/user/login-by-password',
+            method:'POST',
+            headers: {
+                'Content-Type':'application/json; charset=UTF-8',
+                'X-Request-Type': 'Api-Request',
+                'X-Request-Project': window.landProject
+            },
+            xhrFields: {
+                withCredentials: true
+            },
+            dataType:'json',
+            data:user_data,
+            success: function(data, textStatus, request){
+                window.top.location.href = redirectPlatform;
+            },
+            error: function(result) {
+                console.log(result['responseJSON']['errors'][0]['msg']);
+                alert(result['responseJSON']['errors'][0]['msg']);
+            }
+        });
+    }
+
+</script>
